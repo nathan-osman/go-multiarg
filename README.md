@@ -29,8 +29,8 @@ To use go-multiarg, pass a `struct` to the `multiarg.Load()` function with the d
             NumTries: 3,
             LoginURL: "https://example.com/login",
         }
-        if err := multiarg.Load(&config, &multiarg.Config{}); err != nil {
-            // handle error
+        if ok := multiarg.Load(&config, &multiarg.Config{}); !ok {
+            os.Exit(1)
         }
 
         // NumTries can be specified in three ways:

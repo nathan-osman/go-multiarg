@@ -29,7 +29,9 @@ func verifyStruct(t *testing.T, config *Config, expectedVal int) {
 			SubMember: DefaultValue,
 		},
 	}
-	Load(s, config)
+	if ok := Load(s, config); !ok {
+		t.Fatal("unexpected failure")
+	}
 	if s.Member.SubMember != expectedVal {
 		t.Fatalf("%d != %d", s.Member.SubMember, expectedVal)
 	}
