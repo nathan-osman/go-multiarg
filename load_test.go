@@ -85,7 +85,7 @@ func TestHelp(t *testing.T) {
 	b := bytes.NewBuffer(nil)
 	verifyStruct(t, &Config{
 		Args:   []string{"--help"},
-		Output: b,
+		Writer: b,
 	}, DefaultValue, false)
 	if len(b.Bytes()) == 0 {
 		t.Fatal("help output is empty")

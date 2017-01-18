@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"reflect"
 	"regexp"
 	"strings"
@@ -16,7 +17,7 @@ import (
 type Config struct {
 	Args          []string
 	JSONFilenames []string
-	Output        io.Writer
+	Writer        io.Writer
 }
 
 var (
@@ -86,7 +87,7 @@ func walk(a arg, vJSON interface{}, cliMap map[string]arg, components ...string)
 }
 
 // Enumerate the CLI arguments and assign to variables as necessary
-func assignCLIValues(cliMap map[string]arg, args []string) (helpSeen bool, helpArgs []string) {
+func assignCLIValues(cliMap map[string]arg, args []string) (helpSeen bool) {
 	for i := 0; i < len(args); i++ {
 		if strings.HasPrefix(args[i], "--") {
 			if args[i] == "--help" {
@@ -97,9 +98,6 @@ func assignCLIValues(cliMap map[string]arg, args []string) (helpSeen bool, helpA
 			if !ok {
 				continue
 			}
-			// Add to help
-			d, _ := a.f.Tag.Lookup("multiarg")
-			helpArgs = append(helpArgs, fmt.Sprintf("\t%s\t%s", args[i], d))
 			// Boolean values do not require an argument, but all other types
 			// do; in that case, pull the argument that follows
 			if a.v.Kind() == reflect.Bool {
@@ -113,6 +111,28 @@ func assignCLIValues(cliMap map[string]arg, args []string) (helpSeen bool, helpA
 		}
 	}
 	return
+}
+
+// showHelp writes the help output to the specified writer.
+func showHelp(w io.Writer, cliMap map[string]arg) {
+	if w == nil {
+		w = os.Stderr
+	}
+	fmt.Fprintf(
+		w,
+		"Usage: %s [arguments]\n\nArguments:\n\n",
+		path.Base(os.Args[0]),
+	)
+	for name, a := range cliMap {
+		// Add to help
+		d, _ := a.f.Tag.Lookup("multiarg")
+		fmt.Fprintf(
+			w,
+			"\t%s\t%s\n",
+			name,
+			d,
+		)
+	}
 }
 
 // Load attempts to load application configuration from multiple sources. The
@@ -139,20 +159,9 @@ func Load(v interface{}, config *Config) bool {
 	if args == nil {
 		args = os.Args[1:]
 	}
-	// Assign the CLI values
-	helpSeen, helpArgs := assignCLIValues(cliMap, args)
 	// If --help was specified, show help
-	if helpSeen {
-		output := config.Output
-		if output == nil {
-			output = os.Stderr
-		}
-		fmt.Fprintf(
-			output,
-			"Usage: %s [arguments]\n\nArguments:\n\n%s",
-			os.Args[0],
-			strings.Join(helpArgs, "\n"),
-		)
+	if helpSeen := assignCLIValues(cliMap, args); helpSeen {
+		showHelp(config.Writer, cliMap)
 		return false
 	}
 	return true
