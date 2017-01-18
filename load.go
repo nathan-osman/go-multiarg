@@ -29,8 +29,8 @@ func snakeCase(name string) string {
 	return strings.ToLower(name)
 }
 
-// assignJSONValue assigns an interface{} value to a struct if possible. Any errors
-// that occur during assignment are ignored.
+// assignJSONValue assigns an interface{} value to a struct if possible. Any
+// errors that occur during assignment are ignored.
 func assignJSONValue(dest reflect.Value, src interface{}) {
 	defer func() { recover() }()
 	dest.Set(reflect.ValueOf(src).Convert(dest.Type()))
@@ -75,30 +75,8 @@ func walk(v reflect.Value, vJSON interface{}, cliMap map[string]reflect.Value, c
 	}
 }
 
-// Load attempts to load application configuration from multiple sources. The
-// v parameter should be a pointer to a struct and the config parameter
-// determines behavior.
-func Load(v interface{}, config *Config) error {
-	// Build a map from all of the JSON files
-	jsonMap := make(map[string]interface{})
-	if config.JSONFilenames != nil {
-		for _, filename := range config.JSONFilenames {
-			r, err := os.Open(filename)
-			if err != nil {
-				continue
-			}
-			json.NewDecoder(r).Decode(&jsonMap)
-			r.Close()
-		}
-	}
-	// Walk the struct, assigning to the CLI map along the way
-	cliMap := make(map[string]reflect.Value)
-	walk(reflect.ValueOf(v), jsonMap, cliMap)
-	// Enumerate the CLI arguments and assign to variables as necessary
-	args := config.Args
-	if args == nil {
-		args = os.Args
-	}
+// Enumerate the CLI arguments and assign to variables as necessary
+func assignCLIValues(cliMap map[string]reflect.Value, args []string) {
 	for i := 0; i < len(args); i++ {
 		if strings.HasPrefix(args[i], "--") {
 			v, ok := cliMap[args[i]]
@@ -117,5 +95,30 @@ func Load(v interface{}, config *Config) error {
 			}
 		}
 	}
-	return nil
+}
+
+// Load attempts to load application configuration from multiple sources. The
+// v parameter should be a pointer to a struct and the config parameter
+// determines behavior.
+func Load(v interface{}, config *Config) {
+	// Build a map from all of the JSON files
+	jsonMap := make(map[string]interface{})
+	if config.JSONFilenames != nil {
+		for _, filename := range config.JSONFilenames {
+			r, err := os.Open(filename)
+			if err != nil {
+				continue
+			}
+			json.NewDecoder(r).Decode(&jsonMap)
+			r.Close()
+		}
+	}
+	// Walk the struct, assigning to the CLI map along the way
+	cliMap := make(map[string]reflect.Value)
+	walk(reflect.ValueOf(v), jsonMap, cliMap)
+	// Use os.Args if nothing was specified
+	args := config.Args
+	if args == nil {
+		args = os.Args
+	}
 }
