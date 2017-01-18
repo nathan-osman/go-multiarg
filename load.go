@@ -143,8 +143,12 @@ func Load(v interface{}, config *Config) bool {
 	helpSeen, helpArgs := assignCLIValues(cliMap, args)
 	// If --help was specified, show help
 	if helpSeen {
+		output := config.Output
+		if output == nil {
+			output = os.Stderr
+		}
 		fmt.Fprintf(
-			config.Output,
+			output,
 			"Usage: %s [arguments]\n\nArguments:\n\n%s",
 			os.Args[0],
 			strings.Join(helpArgs, "\n"),
