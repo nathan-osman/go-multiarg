@@ -71,7 +71,7 @@ func walk(v reflect.Value, vJSON interface{}, cliMap map[string]reflect.Value, c
 	default:
 		assignJSONValue(v, vJSON)
 		assignEnvValue(v, components)
-		cliMap["--"+strings.Join(components, "-")] = v
+		cliMap["--"+strings.Replace(strings.Join(components, "-"), "_", "-", -1)] = v
 	}
 }
 
@@ -121,4 +121,5 @@ func Load(v interface{}, config *Config) {
 	if args == nil {
 		args = os.Args
 	}
+	assignCLIValues(cliMap, args)
 }

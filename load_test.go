@@ -73,5 +73,5 @@ func TestCLIValue(t *testing.T) {
 			"--member-sub-member",
 			strconv.Itoa(CLIValue),
 		},
-	}, EnvValue)
+	}, CLIValue)
 }
