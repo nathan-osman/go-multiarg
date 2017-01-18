@@ -30,7 +30,7 @@ func verifyStruct(t *testing.T, config *Config, expectedVal int, expectedRet boo
 			SubMember: DefaultValue,
 		},
 	}
-	if ok := Load(s, config); ok != expectedRet {
+	if ok, _ := Load(s, config); ok != expectedRet {
 		t.Fatalf("%t != %t", ok, expectedRet)
 	}
 	if s.Member.SubMember != expectedVal {
@@ -90,4 +90,11 @@ func TestHelp(t *testing.T) {
 	if len(b.Bytes()) == 0 {
 		t.Fatal("help output is empty")
 	}
+}
+
+func TestUnrecognizedOption(t *testing.T) {
+	verifyStruct(t, &Config{
+		Args:   []string{"--unrecognized"},
+		Writer: ioutil.Discard,
+	}, DefaultValue, false)
 }

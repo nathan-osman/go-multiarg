@@ -87,7 +87,7 @@ func walk(a arg, vJSON interface{}, cliMap map[string]arg, components ...string)
 }
 
 // Enumerate the CLI arguments and assign to variables as necessary
-func assignCLIValues(cliMap map[string]arg, args []string) (helpSeen bool) {
+func assignCLIValues(cliMap map[string]arg, args []string) (helpSeen bool, extraArgs []string, err error) {
 	for i := 0; i < len(args); i++ {
 		if strings.HasPrefix(args[i], "--") {
 			if args[i] == "--help" {
@@ -96,7 +96,8 @@ func assignCLIValues(cliMap map[string]arg, args []string) (helpSeen bool) {
 			}
 			a, ok := cliMap[args[i]]
 			if !ok {
-				continue
+				err = fmt.Errorf("unrecognized option %s", args[i])
+				return
 			}
 			// Boolean values do not require an argument, but all other types
 			// do; in that case, pull the argument that follows
@@ -108,6 +109,8 @@ func assignCLIValues(cliMap map[string]arg, args []string) (helpSeen bool) {
 					json.Unmarshal([]byte(args[i]), a.v.Addr().Interface())
 				}
 			}
+		} else {
+			extraArgs = append(extraArgs, args[i])
 		}
 	}
 	return
@@ -115,9 +118,6 @@ func assignCLIValues(cliMap map[string]arg, args []string) (helpSeen bool) {
 
 // showHelp writes the help output to the specified writer.
 func showHelp(w io.Writer, cliMap map[string]arg) {
-	if w == nil {
-		w = os.Stderr
-	}
 	fmt.Fprintf(
 		w,
 		"Usage: %s [arguments]\n\nArguments:\n\n",
@@ -137,8 +137,19 @@ func showHelp(w io.Writer, cliMap map[string]arg) {
 
 // Load attempts to load application configuration from multiple sources. The
 // v parameter should be a pointer to a struct and the config parameter
-// determines behavior.
-func Load(v interface{}, config *Config) bool {
+// determines behavior. The first return value is true if no problems were
+// encountered during parsing and the second return value is a list of
+// non-option arguments.
+func Load(v interface{}, config *Config) (bool, []string) {
+	// Ensure config has proper defaults
+	args := config.Args
+	if args == nil {
+		args = os.Args[1:]
+	}
+	w := config.Writer
+	if w == nil {
+		w = os.Stderr
+	}
 	// Build a map from all of the JSON files
 	jsonMap := make(map[string]interface{})
 	if config.JSONFilenames != nil {
@@ -154,15 +165,15 @@ func Load(v interface{}, config *Config) bool {
 	// Walk the struct, assigning to the CLI map along the way
 	cliMap := make(map[string]arg)
 	walk(arg{v: reflect.ValueOf(v)}, jsonMap, cliMap)
-	// Use os.Args if nothing was specified
-	args := config.Args
-	if args == nil {
-		args = os.Args[1:]
-	}
 	// If --help was specified, show help
-	if helpSeen := assignCLIValues(cliMap, args); helpSeen {
-		showHelp(config.Writer, cliMap)
-		return false
+	helpSeen, extraArgs, err := assignCLIValues(cliMap, args)
+	if err != nil {
+		fmt.Fprintln(w, err)
+		return false, nil
 	}
-	return true
+	if helpSeen {
+		showHelp(w, cliMap)
+		return false, nil
+	}
+	return true, extraArgs
 }

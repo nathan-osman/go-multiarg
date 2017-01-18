@@ -29,7 +29,7 @@ To use go-multiarg, pass a `struct` to the `multiarg.Load()` function with the d
             NumTries: 3,
             LoginURL: "https://example.com/login",
         }
-        if ok := multiarg.Load(&config, &multiarg.Config{}); !ok {
+        if ok, _ := multiarg.Load(&config, &multiarg.Config{}); !ok {
             os.Exit(1)
         }
 
