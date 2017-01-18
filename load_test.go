@@ -1,6 +1,7 @@
 package multiarg
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -16,21 +17,21 @@ const (
 )
 
 type SubStruct struct {
-	SubMember int
+	SubMember int `multiarg:"description"`
 }
 
 type Struct struct {
 	Member *SubStruct
 }
 
-func verifyStruct(t *testing.T, config *Config, expectedVal int) {
+func verifyStruct(t *testing.T, config *Config, expectedVal int, expectedRet bool) {
 	s := &Struct{
 		Member: &SubStruct{
 			SubMember: DefaultValue,
 		},
 	}
-	if ok := Load(s, config); !ok {
-		t.Fatal("unexpected failure")
+	if ok := Load(s, config); ok != expectedRet {
+		t.Fatalf("%t != %t", ok, expectedRet)
 	}
 	if s.Member.SubMember != expectedVal {
 		t.Fatalf("%d != %d", s.Member.SubMember, expectedVal)
@@ -50,7 +51,7 @@ func tempFile(data string) (string, error) {
 }
 
 func TestDefaultValue(t *testing.T) {
-	verifyStruct(t, &Config{}, DefaultValue)
+	verifyStruct(t, &Config{}, DefaultValue, true)
 }
 
 func TestJSONValue(t *testing.T) {
@@ -61,12 +62,14 @@ func TestJSONValue(t *testing.T) {
 	defer os.Remove(f)
 	verifyStruct(t, &Config{
 		JSONFilenames: []string{f},
-	}, JSONValue)
+	}, JSONValue, true)
 }
 
 func TestEnvValue(t *testing.T) {
-	os.Setenv("MEMBER_SUB_MEMBER", strconv.Itoa(EnvValue))
-	verifyStruct(t, &Config{}, EnvValue)
+	envName := "MEMBER_SUB_MEMBER"
+	os.Setenv(envName, strconv.Itoa(EnvValue))
+	defer os.Setenv(envName, "")
+	verifyStruct(t, &Config{}, EnvValue, true)
 }
 
 func TestCLIValue(t *testing.T) {
@@ -75,5 +78,16 @@ func TestCLIValue(t *testing.T) {
 			"--member-sub-member",
 			strconv.Itoa(CLIValue),
 		},
-	}, CLIValue)
+	}, CLIValue, true)
+}
+
+func TestHelp(t *testing.T) {
+	b := bytes.NewBuffer(nil)
+	verifyStruct(t, &Config{
+		Args:   []string{"--help"},
+		Output: b,
+	}, DefaultValue, false)
+	if len(b.Bytes()) == 0 {
+		t.Fatal("help output is empty")
+	}
 }
